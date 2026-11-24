@@ -1,5 +1,3 @@
-import { aesGcmEncrypt, aesGcmDecrypt } from './js/aes-pure.js';
-
 const views = {
   home: document.querySelector('#home-view'),
   form: document.querySelector('#form-view'),
@@ -52,22 +50,27 @@ function fromBase64Url(value) {
 
 async function deriveKey(password, saltBase64) {
   const material = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveKey']);
-  const rawKey = await crypto.subtle.deriveBits(
+  return crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt: fromBase64(saltBase64), iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
     material,
-    256,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
   );
-  return new Uint8Array(rawKey);
 }
 
 async function encryptText(text) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = aesGcmEncrypt(state.key, iv, encoder.encode(text));
-  return { ciphertext: toBase64Url(encrypted), iv: toBase64Url(iv) };
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, state.key, encoder.encode(text));
+  return { ciphertext: toBase64Url(new Uint8Array(encrypted)), iv: toBase64Url(iv) };
 }
 
 async function decryptText(record) {
-  const cleartext = aesGcmDecrypt(state.key, fromBase64Url(record.iv), fromBase64Url(record.ciphertext));
+  const cleartext = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: fromBase64Url(record.iv) },
+    state.key,
+    fromBase64Url(record.ciphertext),
+  );
   return decoder.decode(cleartext);
 }
 
@@ -98,7 +101,7 @@ async function loadFiles() {
         const response = await fetch(apiUrl(`/api/vaults/${state.room.id}/files/${file.id}`), { credentials: 'same-origin' });
         if (!response.ok) throw new Error('Could not download file');
         const cipher = await response.arrayBuffer();
-        const clear = aesGcmDecrypt(state.key, fromBase64Url(file.file_iv), new Uint8Array(cipher));
+        const clear = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromBase64Url(file.file_iv) }, state.key, cipher);
         const url = URL.createObjectURL(new Blob([clear]));
         const link = document.createElement('a'); link.href = url; link.download = name; link.click();
         URL.revokeObjectURL(url);
@@ -129,10 +132,10 @@ async function uploadFiles(event) {
         message.textContent = `Encrypting ${file.name} (${index + 1}/${files.length})…`;
         progress.removeAttribute('value');
       const iv = crypto.getRandomValues(new Uint8Array(12));
-      const encrypted = aesGcmEncrypt(state.key, iv, new Uint8Array(await file.arrayBuffer()));
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, state.key, await file.arrayBuffer());
       const nameIv = crypto.getRandomValues(new Uint8Array(12));
-      const encryptedName = aesGcmEncrypt(state.key, nameIv, encoder.encode(file.name));
-      const headers = { 'Content-Type': 'application/octet-stream', 'X-CSRF-Token': state.csrfToken, 'X-File-Name': toBase64Url(encryptedName), 'X-Name-Iv': toBase64Url(nameIv), 'X-File-Iv': toBase64Url(iv) };
+      const encryptedName = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nameIv }, state.key, encoder.encode(file.name));
+      const headers = { 'Content-Type': 'application/octet-stream', 'X-CSRF-Token': state.csrfToken, 'X-File-Name': toBase64Url(new Uint8Array(encryptedName)), 'X-Name-Iv': toBase64Url(nameIv), 'X-File-Iv': toBase64Url(iv) };
         message.textContent = `Uploading ${file.name} (${index + 1}/${files.length})…`;
         await new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest(); xhr.open('POST', apiUrl(`/api/vaults/${state.room.id}/files`)); xhr.withCredentials = true;
