@@ -1,0 +1,22 @@
+# Kredensial lokal
+.env
+.env.*
+!.env.example
+
+# Editor dan sistem operasi
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# File upload/runtime lokal
+/storage/files/*
+!/storage/files/.htaccess
+!/storage/files/.gitkeep
+
+# Dependensi PHP, jika nanti menggunakan Composer
+/vendor/
+
+# Log
+*.log
