@@ -1,0 +1,37 @@
+CREATE DATABASE IF NOT EXISTS flowaut
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+USE flowaut;
+
+CREATE TABLE IF NOT EXISTS rooms (
+    id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    encryption_salt BINARY(16) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS files (
+    id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+    room_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    encrypted_name MEDIUMTEXT NOT NULL,
+    name_iv VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    file_iv VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    mime_type VARCHAR(120) NOT NULL,
+    byte_size BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX files_room_created (room_id, created_at),
+    CONSTRAINT files_room_fk FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS contents (
+    id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY,
+    room_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    ciphertext MEDIUMTEXT NOT NULL,
+    iv VARCHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    INDEX contents_room_created (room_id, created_at),
+    CONSTRAINT contents_room_fk FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
