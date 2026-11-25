@@ -9,6 +9,10 @@
 
 Nilai bawaan di `config/database.php` mengikuti instalasi XAMPP lokal: host `127.0.0.1`, port `3306`, database `flowaut`, user `root`, dan password kosong. Jika kredensial MySQL berbeda, atur variabel lingkungan `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, dan `DB_PASSWORD` untuk Apache.
 
+## Dashboard super admin (demo kuliah)
+
+Buka `http://localhost/flowaut/admin` dan masuk dengan password default `123`. Untuk demo lokal, password dapat diganti dengan mengatur variabel lingkungan Apache `SUPERADMIN_PASSWORD`. Dashboard menampilkan daftar vault dan metadata aktivitas enkripsi. Untuk uji dekripsi, pilih vault lalu masukkan password vault tersebut. Catatan, nama file, dan file hanya didekripsi di browser; dashboard tidak menyimpan password vault atau plaintext. Ganti password demo ini sebelum aplikasi dipakai di lingkungan publik.
+
 ## Penyimpanan upload
 
 File disimpan di `storage/files/` di dalam folder proyek. Data yang disimpan adalah ciphertext hasil enkripsi browser. Direktori `storage` ditolak oleh `.htaccess`; jangan hapus aturan tersebut. Jika Apache tidak dapat menyimpan file, berikan akun yang menjalankan Apache izin **Modify** pada `C:\\xampp\\htdocs\\flowaut\\storage\\files`.

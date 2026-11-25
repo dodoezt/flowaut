@@ -8,5 +8,8 @@ RewriteRule ^(?:app|database|config|storage|\.env|.*\.sql$)(?:/|$) - [F,L,NC]
 # Let the API front controller handle JSON endpoints.
 RewriteRule ^api(?:/|$) api/index.php [QSA,L]
 
+# Serve the admin dashboard shell; JavaScript handles the route.
+RewriteRule ^admin/?$ index.html [L,NC]
+
 # Serve the same HTML shell for room URLs; JavaScript handles the route.
 RewriteRule ^vault/[a-f0-9-]+/?$ index.html [L,NC]

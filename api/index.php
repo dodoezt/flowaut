@@ -56,7 +56,14 @@ function roomIdFromPath(string $path): ?string
 function requireRoomAccess(string $roomId): void
 {
     if (empty($_SESSION['rooms'][$roomId])) {
-        respond(401, ['error' => 'Unlock this room first']);
+        respond(401, ['error' => 'Unlock this vault first']);
+    }
+}
+
+function requireAdminAccess(): void
+{
+    if (empty($_SESSION['super_admin'])) {
+        respond(401, ['error' => 'Admin sign in required']);
     }
 }
 
@@ -88,6 +95,75 @@ if ($appBase !== '' && str_starts_with($path, $appBase . '/')) {
 
 try {
     $pdo = database();
+    if ($path === '/api/admin/session' && $method === 'GET') {
+        respond(200, ['authenticated' => !empty($_SESSION['super_admin']), 'csrfToken' => $_SESSION['csrf_token'] ?? '']);
+    }
+
+    if ($path === '/api/admin/login' && $method === 'POST') {
+        $configuredPassword = getenv('SUPERADMIN_PASSWORD') ?: '123';
+        $data = requestData();
+        $password = requiredString($data, 'password', 1024);
+        if (!hash_equals($configuredPassword, $password)) {
+            respond(401, ['error' => 'Admin password is incorrect']);
+        }
+        session_regenerate_id(true);
+        $_SESSION['super_admin'] = true;
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        respond(200, ['authenticated' => true, 'csrfToken' => $_SESSION['csrf_token']]);
+    }
+
+    if ($path === '/api/admin/logout' && $method === 'POST') {
+        requireAdminAccess();
+        requireCsrf();
+        unset($_SESSION['super_admin']);
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        respond(200, ['ok' => true]);
+    }
+
+    if ($path === '/api/admin/vaults' && $method === 'GET') {
+        requireAdminAccess();
+        $stmt = $pdo->query('SELECT r.id, r.name, r.created_at, (SELECT COUNT(*) FROM contents c WHERE c.room_id = r.id) AS note_count, (SELECT COUNT(*) FROM files f WHERE f.room_id = r.id) AS file_count, (SELECT COALESCE(SUM(f.byte_size), 0) FROM files f WHERE f.room_id = r.id) AS total_bytes FROM rooms r ORDER BY r.created_at DESC');
+        respond(200, ['vaults' => $stmt->fetchAll()]);
+    }
+
+    if (preg_match('~^/api/admin/vaults/([0-9a-f-]{36})/unlock/?$~i', $path, $adminUnlockMatch) && $method === 'POST') {
+        requireAdminAccess();
+        requireCsrf();
+        $vaultId = strtolower($adminUnlockMatch[1]);
+        $data = requestData();
+        $password = requiredString($data, 'password', 1024);
+        $vaultStmt = $pdo->prepare('SELECT id, name, password_hash, encryption_salt, created_at FROM rooms WHERE id = ? LIMIT 1');
+        $vaultStmt->execute([$vaultId]);
+        $vault = $vaultStmt->fetch();
+        if (!$vault || !password_verify(hash('sha256', $password), $vault['password_hash'])) {
+            respond(401, ['error' => 'Vault password is incorrect']);
+        }
+        $contentsStmt = $pdo->prepare('SELECT id, ciphertext, iv, created_at, updated_at FROM contents WHERE room_id = ? ORDER BY created_at DESC');
+        $contentsStmt->execute([$vaultId]);
+        $filesStmt = $pdo->prepare('SELECT id, encrypted_name, name_iv, file_iv, byte_size, created_at FROM files WHERE room_id = ? ORDER BY created_at DESC');
+        $filesStmt->execute([$vaultId]);
+        respond(200, [
+            'vault' => ['id' => $vault['id'], 'name' => $vault['name'], 'salt' => base64_encode($vault['encryption_salt']), 'created_at' => $vault['created_at']],
+            'contents' => $contentsStmt->fetchAll(),
+            'files' => $filesStmt->fetchAll(),
+        ]);
+    }
+
+    if (preg_match('~^/api/admin/vaults/([0-9a-f-]{36})/files/([0-9a-f-]{36})/?$~i', $path, $adminFileMatch) && $method === 'GET') {
+        requireAdminAccess();
+        $vaultId = strtolower($adminFileMatch[1]);
+        $fileId = strtolower($adminFileMatch[2]);
+        $stmt = $pdo->prepare('SELECT byte_size FROM files WHERE id = ? AND room_id = ?');
+        $stmt->execute([$fileId, $vaultId]);
+        $file = $stmt->fetch();
+        if (!$file || !is_file(filePath($fileId))) respond(404, ['error' => 'File not found']);
+        header('Content-Type: application/octet-stream');
+        header('Content-Length: ' . $file['byte_size']);
+        header('Content-Disposition: attachment; filename="encrypted.bin"');
+        readfile(filePath($fileId));
+        exit;
+    }
+
     if ($path === '/api/vaults' && $method === 'POST') {
         $data = requestData();
         $name = trim(requiredString($data, 'name', 100));
@@ -104,7 +180,7 @@ try {
             $stmt->execute([$id, $name, password_hash($passwordDigest, PASSWORD_DEFAULT), $salt]);
         } catch (PDOException $e) {
             if ($e->getCode() === '23000') {
-                respond(409, ['error' => 'Room name already taken']);
+                respond(409, ['error' => 'Vault name already taken']);
             }
             throw $e;
         }
@@ -123,7 +199,7 @@ try {
         $stmt->execute([$name]);
         $room = $stmt->fetch();
         if (!$room || !password_verify(hash('sha256', $password), $room['password_hash'])) {
-            respond(401, ['error' => 'Room name or password is incorrect']);
+            respond(401, ['error' => 'Vault name or password is incorrect']);
         }
 
         session_regenerate_id(true);
@@ -144,7 +220,7 @@ try {
             $stmt->execute([$roomId]);
             $room = $stmt->fetch();
             if (!$room || !password_verify(hash('sha256', $password), $room['password_hash'])) {
-                respond(401, ['error' => 'Room password is incorrect']);
+                respond(401, ['error' => 'Vault password is incorrect']);
             }
             session_regenerate_id(true);
             $_SESSION['rooms'] = [$roomId => true];

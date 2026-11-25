@@ -7,7 +7,7 @@
   <meta name="description" content="Send encrypted text between your devices with Flowaut.">
   <title>Flowaut — encrypted vaults</title>
   <link rel="stylesheet" href="styles.css">
-  <script type="module" src="app.js?v=5"></script>
+  <script type="module" src="app.js?v=7"></script>
 </head>
 <body>
   <header class="topbar">
@@ -17,14 +17,15 @@
 
   <main class="container">
     <section id="home-view" class="view home-view">
-      <p class="eyebrow">Your notes, wherever you need them</p>
-      <h1>Move text between devices.<br><span>Keep it private.</span></h1>
+      <p class="eyebrow">Your files, wherever you need them</p>
+      <h1>Move Files Easily<br><span>Keep it private.</span></h1>
       <p class="intro">Create a password-protected vault to share encrypted notes and files between your devices.</p>
       <div class="actions">
         <button class="button primary" id="show-create">Create Vault <small>Ctrl + M</small></button>
         <button class="button secondary" id="show-enter">Enter vault <small>Ctrl + Enter</small></button>
       </div>
-      <p class="privacy-note">Text is encrypted in your browser before it is saved.</p>
+      <p class="privacy-note">Files are encrypted in your browser before they are saved.</p>
+      <a class="admin-link" href="admin" data-admin>Super admin dashboard</a>
     </section>
 
     <section id="form-view" class="view card" hidden>
@@ -37,7 +38,7 @@
         <label for="room-password">Vault password</label>
         <input id="room-password" name="password" type="password" autocomplete="current-password" required>
         <p id="form-error" class="error" role="alert" hidden></p>
-        <button class="button primary full" id="form-submit" type="submit">Create room</button>
+        <button class="button primary full" id="form-submit" type="submit">Create Vault</button>
       </form>
     </section>
 
@@ -49,8 +50,45 @@
         <label for="unlock-password">Vault password</label>
         <input id="unlock-password" type="password" autocomplete="current-password" required>
         <p id="unlock-error" class="error" role="alert" hidden></p>
-        <button class="button primary full" id="unlock-submit" type="submit">Unlock room</button>
+        <button class="button primary full" id="unlock-submit" type="submit">Unlock vault</button>
       </form>
+    </section>
+
+    <section id="admin-view" class="view admin-view" hidden>
+      <div class="room-heading">
+        <div><p class="eyebrow">Coursework demo</p><h1>Super admin</h1></div>
+        <button class="button secondary" id="admin-home">Home</button>
+      </div>
+      <section id="admin-login" class="card">
+        <h2>Admin sign in</h2>
+        <p class="muted">Sign in to review vault encryption activity.</p>
+        <form id="admin-login-form">
+          <label for="admin-password">Admin password</label>
+          <input id="admin-password" type="password" autocomplete="current-password" required>
+          <p id="admin-login-error" class="error" role="alert" hidden></p>
+          <button class="button primary full" id="admin-login-submit" type="submit">Sign in</button>
+        </form>
+      </section>
+      <div id="admin-dashboard" hidden>
+        <div class="admin-summary">
+          <div class="content-card"><span>Encrypted vaults</span><strong id="admin-vault-count">0</strong></div>
+          <button class="button primary" id="admin-refresh">Refresh</button>
+          <button class="button secondary" id="admin-logout">Sign out</button>
+        </div>
+        <p id="admin-error" class="error" role="alert" hidden></p>
+        <div id="admin-vaults" class="contents"></div>
+        <section id="admin-inspector" class="file-panel" hidden>
+          <div class="room-heading"><div><p class="eyebrow">Vault inspection</p><h2 id="admin-inspector-title"></h2></div></div>
+          <p class="muted">Enter this vault’s password to decrypt its notes and files in this browser.</p>
+          <form id="admin-unlock-form" class="admin-unlock-form">
+            <label for="admin-vault-password">Vault password</label>
+            <input id="admin-vault-password" type="password" autocomplete="current-password" required>
+            <p id="admin-unlock-error" class="error" role="alert" hidden></p>
+            <button class="button primary" type="submit">Decrypt vault</button>
+          </form>
+          <div id="admin-decrypted" class="contents" hidden></div>
+        </section>
+      </div>
     </section>
 
     <section id="room-view" class="view room-view" hidden>
@@ -74,7 +112,7 @@
         <input id="file-input" type="file" multiple hidden>
         <p class="muted">Encrypted in your browser · 25 MB max per file</p>
         <div id="upload-status" class="upload-status" role="status" aria-live="polite" hidden>
-          <span id="upload-message">Preparing upload…</span>
+          <span id="upload-message"></span>
           <progress id="upload-progress" max="100"></progress>
         </div>
         <p id="file-error" class="error" role="alert" hidden></p>
@@ -83,6 +121,6 @@
     </section>
   </main>
 
-  <footer>Flowaut · Your room password is never stored as readable text.</footer>
+  <footer>Flowaut · Vault passwords are never stored as readable text.</footer>
 </body>
 </html>
